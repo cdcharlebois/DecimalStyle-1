@@ -30,6 +30,17 @@ define([
         _handles: null,
         _contextObj: null,
 
+        //Nodes
+        beforeNode:null,
+        afterNode:null,
+        decimalNode:null,
+
+        //Modeler
+        beforeClassName:null,
+        afterClassName:null,
+        field:null,
+        OnClickMicroflow: null,
+
         constructor: function () {
             this._handles = [];
         },
@@ -42,8 +53,51 @@ define([
             logger.debug(this.id + ".update");
 
             this._contextObj = obj;
+            this._resetSubscriptions();
             this._updateRendering(callback);
         },
+
+        _resetSubscriptions: function (){
+            this.unsubscribeAll();
+            //Add attribute subscription
+            this.subscribe({
+                guid:this._contextObj.getGuid(),
+                attr:this.field,
+                callback: this._updateRendering
+            });
+            //Add object subscription
+            this.subscribe({
+                guid:this._contextObj.getGuid(),
+                callback: this._updateRendering
+            });
+        },
+       
+        postCreate: function(){
+            this._setupEvents();
+        },
+
+        _setupEvents: function(){
+            //Subscribe to On click events
+            this.connect(this.widgetBase, "onclick", function(){
+                mx.data.action({
+                    params: {
+                        applyto: "selection",
+                        actionname: this.onClickMicroflow,
+                        guids: [ this._contextObj.getGuid()],
+                        
+                    },
+                    origin: this.mxform,
+                    callback:lang.hitch(this, function(obj) {
+                        // expect single MxObject
+                       console.log("microflow ran sucessfully");
+                    }),
+                    error: function(error) {
+                        console.log(error.description);
+                    },
+                });
+            });
+        },
+
 
         resize: function (box) {
             logger.debug(this.id + ".resize");
@@ -55,6 +109,13 @@ define([
 
         _updateRendering: function (callback) {
             logger.debug(this.id + "._updateRendering");
+            
+            var value = "" + this._contextObj.get(this.field) * 1;
+            var splitValues = value.split(".");
+            this.beforeNode.innerHTML = splitValues[0];
+            this.beforeNode.className += "" + this.beforeClassName;
+            this.afterNode.innerHTML = splitValues[1];
+            this.afterNode.className += "" + this.afterClassName;
 
             if (this._contextObj !== null) {
                 dojoStyle.set(this.domNode, "display", "block");
